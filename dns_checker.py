@@ -1,19 +1,19 @@
 import socket
-
-
 from urllib.parse import urlparse
 
 
 def parse_domain(url: str) -> str:
     parsed = urlparse(url)
-    if 'www.' in parsed.netloc:
-        return parsed.netloc[4:].replace('\n', '')
-    return parsed.path.split('/')[0]
+
+    # Fallback to path if netloc is empty, then drop URL path/query
+    host = (parsed.netloc or parsed.path).split('/')[0]
+    return host.removeprefix('www.')
 
 
-def get_site_ip(url: str):
-    parsed_domain = parse_domain(url)
-    print(parsed_domain)
-    #print(socket.gethostbyname(parsed_domain))
-
-get_site_ip('https://www.ipko.pl/logowanie')
+def get_site_ip(url: str) -> str | None:
+    try:
+        parsed_domain = parse_domain(url)
+        return socket.gethostbyname(parsed_domain)
+    except socket.gaierror:
+        print(f"Error: Couldn't connect with site {parsed_domain}")
+        return None
