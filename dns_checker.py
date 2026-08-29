@@ -1,6 +1,7 @@
 import dns.resolver
 import dns.exception
 import socket
+import requests
 from urllib.parse import urlparse
 
 
@@ -21,7 +22,8 @@ def get_site_ip(url: str) -> str | None:
         print(f"Error: Couldn't connect with site {parsed_domain}")
         return None
 
-def get_trusted_ip(url: str, dns_server: str='1.1.1.1') -> str | None:
+
+def get_trusted_ip(url: str, dns_server: str = '1.1.1.1') -> str | None:
 
     custom_resolver = dns.resolver.Resolver()
     custom_resolver.nameservers = [dns_server]
@@ -40,4 +42,23 @@ def get_trusted_ip(url: str, dns_server: str='1.1.1.1') -> str | None:
             print(f"DNS Resolution Error for {parsed_domain}: {e}")
             return None
 
+    return None
+
+
+def get_asn(ip_address: str) -> int | None:
+    """Get the ASN number to verify the IP address owner"""
+    if ip_address is None:
+        return None
+
+    api_url = f"https://ipwho.is/{ip_address}"
+
+    response = requests.get(api_url)
+    res = response.json()
+
+    if not res.get("success"):
+        return None
+
+    connection = res.get("connection")
+    if connection:
+        return connection.get("asn")
     return None
