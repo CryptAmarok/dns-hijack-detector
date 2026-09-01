@@ -1,5 +1,8 @@
-import dns.resolver
+import dns.rcode
 import dns.exception
+import dns.message
+import dns.query
+import dns.rdatatype
 import socket
 import requests
 from urllib.parse import urlparse
@@ -23,37 +26,53 @@ def get_site_ip(url: str) -> str | None:
         return None
 
 
-def get_trusted_ip(url: str, dns_server: str = '1.1.1.1') -> str | None:
-
-    custom_resolver = dns.resolver.Resolver()
-    custom_resolver.nameservers = [dns_server]
+def get_trusted_ip(
+        url: str,
+        doh_url: str = 'https://cloudflare-dns.com/dns-query'
+) -> str | None:
 
     parsed_domain = parse_domain(url)
 
     # Prevent DNS query if parsed_domain is an empty string
-    if parsed_domain:
-        try:
-            answers = custom_resolver.resolve(parsed_domain)
-            return next(answer.to_text() for answer in answers)
-        except dns.resolver.NXDOMAIN:
+    if not parsed_domain:
+        return None
+
+    # create the dns message for trusted resolver
+    query = dns.message.make_query(parsed_domain, dns.rdatatype.A)
+
+    try:
+        # send DoH
+        response = dns.query.https(
+            query, doh_url, http_version=dns.query.HTTPVersion.H2)
+
+        if response.rcode() == dns.rcode.NXDOMAIN:
             print(f"The {parsed_domain} does not exist")
             return None
-        except dns.exception.DNSException as e:
-            print(f"DNS Resolution Error for {parsed_domain}: {e}")
+
+        if not response.answer:
             return None
 
-    return None
+        answer = response.answer[0][0]
+        return answer.address
+
+    except dns.exception.DNSException as e:
+        print(f"DNS Resolution Error for {parsed_domain}: {e}")
+        return None
 
 
-def get_asn(ip_address: str) -> int | None:
+def get_asn(ip_address: str | None) -> int | None:
     """Get the ASN number to verify the IP address owner"""
     if ip_address is None:
         return None
 
     api_url = f"https://ipwho.is/{ip_address}"
 
-    response = requests.get(api_url)
-    res = response.json()
+    try:
+        response = requests.get(api_url)
+        response.raise_for_status()
+        res = response.json()
+    except (requests.RequestException, ValueError):
+        return None
 
     if not res.get("success"):
         return None
