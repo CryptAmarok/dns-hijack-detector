@@ -6,6 +6,14 @@ import dns.rdatatype
 import socket
 import requests
 from urllib.parse import urlparse
+from dataclasses import dataclass
+
+
+@dataclass
+class DNSRecords:
+    domain: str
+    local_ip: str | None
+    reference_ips: tuple[str | None, str | None]
 
 
 def parse_domain(url: str) -> str:
@@ -81,3 +89,23 @@ def get_asn(ip_address: str | None) -> int | None:
     if connection:
         return connection.get("asn")
     return None
+
+
+def fetch_dns(url: str) -> DNSRecords:
+    local_ip = get_local_ip(url)
+    cloudflare_ip = get_trusted_ip(
+        url, "https://cloudflare-dns.com/dns-query"
+    )
+
+    # Second trusted resolver for better verification
+    google_ip = get_trusted_ip(
+        url, "https://dns.google/dns-query"
+    )
+
+    reference_ips = (cloudflare_ip, google_ip)
+
+    return DNSRecords(
+        domain=parse_domain(url),
+        local_ip=local_ip,
+        reference_ips=reference_ips
+    )
