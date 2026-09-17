@@ -16,7 +16,7 @@ def parse_domain(url: str) -> str:
     return host.removeprefix('www.')
 
 
-def get_site_ip(url: str) -> str | None:
+def get_local_ip(url: str) -> str | None:
     """Get the IP address of a domain using the system's resolver"""
     try:
         parsed_domain = parse_domain(url)
@@ -33,15 +33,15 @@ def get_trusted_ip(
 
     parsed_domain = parse_domain(url)
 
-    # Prevent DNS query if parsed_domain is an empty string
+    # Prevent DNS query if the domain is empty
     if not parsed_domain:
         return None
 
-    # create the dns message for trusted resolver
+    # Create DNS query for the trusted resolver
     query = dns.message.make_query(parsed_domain, dns.rdatatype.A)
 
     try:
-        # send DoH
+        # send query over DoH
         response = dns.query.https(
             query, doh_url, http_version=dns.query.HTTPVersion.H2)
 

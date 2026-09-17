@@ -1,9 +1,9 @@
-from dns_checker import get_site_ip, get_trusted_ip, get_asn
+from dns_checker import get_local_ip, get_trusted_ip, get_asn
 
 
 def main() -> None:
     url = input("Enter the URL: ")
-    local_resolver_ip = get_site_ip(url)
+    local_resolver_ip = get_local_ip(url)
     trusted_resolver_ip = get_trusted_ip(url)
 
     if local_resolver_ip is None:
