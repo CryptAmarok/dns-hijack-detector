@@ -13,7 +13,7 @@ from dataclasses import dataclass
 class DNSRecords:
     domain: str
     local_ip: str | None
-    reference_ips: tuple[str | None, str | None]
+    reference_records: tuple[tuple[str, ...] | None, tuple[str, ...] | None]
 
 
 def parse_domain(url: str) -> str:
@@ -34,10 +34,10 @@ def get_local_ip(url: str) -> str | None:
         return None
 
 
-def get_trusted_ip(
+def get_trusted_ips(
         url: str,
         doh_url: str = 'https://cloudflare-dns.com/dns-query'
-) -> str | None:
+) -> tuple[str, ...] | None:
 
     parsed_domain = parse_domain(url)
 
@@ -60,8 +60,9 @@ def get_trusted_ip(
         if not response.answer:
             return None
 
-        answer = response.answer[0][0]
-        return answer.address
+        for rrset in response.answer:
+            if rrset.rdtype == dns.rdatatype.A:
+                return tuple(str(record.address) for record in rrset)
 
     except dns.exception.DNSException as e:
         print(f"DNS Resolution Error for {parsed_domain}: {e}")
@@ -93,12 +94,12 @@ def get_asn(ip_address: str | None) -> int | None:
 
 def fetch_dns(url: str) -> DNSRecords:
     local_ip = get_local_ip(url)
-    cloudflare_ip = get_trusted_ip(
+    cloudflare_ip = get_trusted_ips(
         url, "https://cloudflare-dns.com/dns-query"
     )
 
     # Second trusted resolver for better verification
-    google_ip = get_trusted_ip(
+    google_ip = get_trusted_ips(
         url, "https://dns.google/dns-query"
     )
 
@@ -107,5 +108,5 @@ def fetch_dns(url: str) -> DNSRecords:
     return DNSRecords(
         domain=parse_domain(url),
         local_ip=local_ip,
-        reference_ips=reference_ips
+        reference_records=reference_ips
     )
