@@ -16,6 +16,12 @@ class DNSRecords:
     reference_records: tuple[tuple[str, ...] | None, tuple[str, ...] | None]
 
 
+@dataclass
+class DNSAnalysis:
+    ip_match: bool
+    asn_match: bool
+
+
 def parse_domain(url: str) -> str:
     parsed = urlparse(url)
 
@@ -110,3 +116,31 @@ def fetch_dns(url: str) -> DNSRecords:
         local_ip=local_ip,
         reference_records=reference_ips
     )
+
+
+def analyze_dns(dns_record: DNSRecords):
+
+    result = {
+        'ip_match': False,
+        'asn_match': False
+    }
+    local = dns_record.local_ip
+
+    if local is None:
+        raise RuntimeError("Couldn't resolve domain to an IP address")
+
+    if any(local in ref
+           for ref in dns_record.reference_records
+           if ref is not None):
+        result['ip_match'] = True
+
+    local_asn = get_asn(local)
+
+    reference_asn_1 = get_asn(dns_record.reference_records[0][0])
+    reference_asn_2 = get_asn(dns_record.reference_records[1][0])
+
+    if local_asn in (reference_asn_1, reference_asn_2):
+        result['asn_match'] = True
+
+    return result
+    
