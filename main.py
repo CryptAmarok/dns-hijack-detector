@@ -1,36 +1,45 @@
-from dns_checker import get_local_ip, get_trusted_ip, get_asn
+from dns_checker import analyze_dns, fetch_dns
 
 
 def main() -> None:
-    url = input("Enter the URL: ")
-    local_resolver_ip = get_local_ip(url)
-    trusted_resolver_ip = get_trusted_ip(url)
+    while True:
+        try:
+            url = input("Enter the URL: ").strip()
+        except KeyboardInterrupt:
+            break
 
-    if local_resolver_ip is None:
-        print("There is a problem with local resolver")
-        return
+        if not url:
+            continue
 
-    if trusted_resolver_ip is None:
-        print("There is a problem with trusted resolver")
-        return
+        print(f"Checking {url}...")
+        try:
+            records = fetch_dns(url)
 
-    if local_resolver_ip == trusted_resolver_ip:
-        print("DNS respones are comatible")
-    else:
-        local_asn = get_asn(local_resolver_ip)
-        trusted_asn = get_asn(trusted_resolver_ip)
-        if local_asn is None:
-            print("Problem with local ASN")
-            return
-        if trusted_asn is None:
-            print("Problem with trusted ASN")
-            return
-        if local_asn == trusted_asn:
-            print("IP addresses are different, "
-                  "but they belong to the same ASN.")
-            print("No DNS anomaly detected.")
-        else:
-            print("Potential DNS anomaly detected")
+            analysis = analyze_dns(records)
+
+            ip_match = analysis.get('ip_match')
+            asn_match = analysis.get('asn_match')
+
+            print(f"Local IP: {records.local_ip}")
+
+            if ip_match is None or asn_match is None:
+                print("UNKNOWN: Unable to determine DNS status")
+            elif ip_match and asn_match:  # T T Both IP and ASN True
+                print("GOOD: DNS responses are consistent")
+            elif not ip_match and not asn_match:  # F F Both IP and ASN False
+                print("SUSPICIOUS: DNS responses differ between resolvers")
+            elif not ip_match and asn_match:  # F T
+                print("GOOD: Possible CDN or load balancing")
+            elif ip_match and not asn_match: # Only IP True
+                print(
+                    "WARNING: Inconsistent ASN information. "
+                    "Further investigation is required")
+
+        except RuntimeError as e:
+            print(f"Error: {e}")
+
+        except Exception as e:
+            print(f"Unknown Error: {e}")
 
 
 if __name__ == '__main__':
