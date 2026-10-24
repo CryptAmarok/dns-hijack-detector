@@ -1,12 +1,13 @@
-import dns.rcode
+import socket
+from dataclasses import dataclass
+from urllib.parse import urlparse
+
 import dns.exception
 import dns.message
 import dns.query
+import dns.rcode
 import dns.rdatatype
-import socket
 import requests
-from urllib.parse import urlparse
-from dataclasses import dataclass
 
 
 @dataclass
